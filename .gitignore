@@ -1,0 +1,61 @@
+# Ambientes virtuais e cache Python
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Ferramentas de teste e qualidade
+.pytest_cache/
+.pytest-tmp*/
+.test-tmp*/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Variaveis de ambiente locais
+.env
+.env.local
+
+# Dados locais e banco analitico DuckDB
+data/bronze/*
+!data/bronze/.gitkeep
+data/silver/*
+!data/silver/.gitkeep
+data/gold/*
+!data/gold/.gitkeep
+data/predictions/*
+!data/predictions/.gitkeep
+*.duckdb
+*.duckdb.wal
+*.parquet
+data/weather/
+*.csv
+
+# Artefatos de modelos e MLflow
+artifacts/*
+!artifacts/.gitkeep
+mlruns/
+mlartifacts/
+*.db
+*.sqlite
+
+# Artefatos locais do dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+dbt/.user.yml
+
+# Sistema operacional e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

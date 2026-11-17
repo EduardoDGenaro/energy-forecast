@@ -1,0 +1,55 @@
+project:
+  name: "energy-forecast"
+  version: "0.1.0"
+  description: "Previsao de carga eletrica diaria para o subsistema Sudeste/Centro-Oeste (SE)"
+
+paths:
+  bronze_dir: "data/bronze"
+  silver_dir: "data/silver"
+  gold_dir: "data/gold"
+  predictions_dir: "data/predictions"
+  artifacts_dir: "artifacts"
+  duckdb_path: "data/energy_forecast.duckdb"
+  manifest_path: "data/bronze/ingestion_manifest.json"
+  dbt_project_dir: "dbt"
+
+ingestion:
+  dataset_slug: "carga-energia"
+  ckan_package_url: "https://dados.ons.org.br/api/3/action/package_show?id=carga-energia"
+  s3_base_url: "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di"
+  s3_uri_prefix: "s3://ons-aws-prod-opendata/dataset/carga_energia_di/"
+  file_prefix: "CARGA_ENERGIA"
+  start_year: 2018
+  target_subsystem: "SE"
+  target_unit: "MWmed"
+  request_timeout_seconds: 60
+
+forecasting:
+  target_column: "val_cargaenergiamwmed"
+  date_column: "din_instante"
+  subsystem_column: "id_subsistema"
+  target_subsystem: "SE"
+  horizon_days: 7
+  country_holidays: "BR"
+  lags:
+    - 7
+    - 14
+    - 28
+  rolling_windows:
+    - 7
+    - 14
+    - 28
+
+backtesting:
+  min_train_days: 730
+  step_days: 7
+  horizon_days: 7
+  metrics:
+    - "mae"
+    - "mape"
+
+mlflow:
+  tracking_uri: "sqlite:///artifacts/mlflow.db"
+  experiment_name: "ons-se-load-forecast"
+  registered_model_name: "lightgbm-se-daily-load"
+

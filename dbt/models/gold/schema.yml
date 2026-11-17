@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: fct_carga_diaria_se
+    description: >
+      Camada Gold contendo a serie temporal diaria oficial do subsistema Sudeste/Centro-Oeste (SE)
+      ordenada cronologicamente, com chave temporal unica, carga em MWmed e verificacao de
+      continuidade temporal pronta para engenharia de atributos e modelagem preditiva.
+    columns:
+      - name: data_referencia
+        description: "Chave primaria temporal (DATE) da serie diaria do subsistema SE."
+        tests:
+          - not_null
+          - unique
+      - name: id_subsistema
+        description: "Codigo do subsistema eletrico (sempre 'SE')."
+        tests:
+          - not_null
+      - name: nom_subsistema
+        description: "Nome do subsistema eletrico ('Sudeste/Centro-Oeste')."
+        tests:
+          - not_null
+      - name: carga_mwmed
+        description: "Carga diaria de energia eletrica em MWmed."
+        tests:
+          - not_null
+      - name: val_cargaenergiamwmed
+        description: "Alias compativel com o codigo original do ONS para a carga diaria em MWmed."
+        tests:
+          - not_null
+      - name: dias_desde_observacao_anterior
+        description: "Diferenca em dias em relacao a data imediatamente anterior na serie (deve ser 1)."
+        tests:
+          - not_null
+      - name: is_continuous
+        description: "True quando nao ha lacuna temporal em relacao ao registro anterior."
+        tests:
+          - not_null
+      - name: _bronze_source_file
+        description: "Arquivo Parquet da camada Bronze de origem do registro."
+        tests:
+          - not_null

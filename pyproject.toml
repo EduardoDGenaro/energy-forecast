@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "energy-forecast"
+version = "0.1.0"
+description = "Previsao de carga eletrica diaria do subsistema Sudeste/Centro-Oeste (SE) com dados publicos do ONS, DuckDB, dbt e LightGBM."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [
+    { name = "Data Engineering & MLOps" }
+]
+dependencies = [
+    "duckdb>=1.0.0",
+    "dbt-core>=1.8.0",
+    "dbt-duckdb>=1.8.0",
+    "pandas>=2.2.0",
+    "pyarrow>=15.0.0",
+    "lightgbm>=4.3.0",
+    "mlflow>=3.0.0",
+    "scikit-learn>=1.4.0",
+    "holidays>=0.45",
+    "pyyaml>=6.0.1",
+    "python-dotenv>=1.0.1",
+    "requests>=2.31.0",
+    "tzdata>=2024.1",
+    "python-dateutil>=2.8.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "ruff>=0.4.0",
+]
+dashboard = [
+    "streamlit>=1.49.0",
+    "plotly>=5.20.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "scripts", "tests", "dashboard"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["energy_forecast"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q --strict-markers"
+

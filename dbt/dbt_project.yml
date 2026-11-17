@@ -1,0 +1,32 @@
+name: "energy_forecast_dbt"
+version: "0.1.0"
+config-version: 2
+
+profile: "energy_forecast"
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+vars:
+  bronze_parquet_glob: "../data/bronze/*.parquet"
+  target_subsystem: "SE"
+  start_date: "2018-01-01"
+
+models:
+  energy_forecast_dbt:
+    silver:
+      +schema: silver
+      +materialized: table
+    gold:
+      +schema: gold
+      +materialized: table
+

@@ -1,0 +1,12 @@
+energy_forecast:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../data/energy_forecast.duckdb') }}"
+      threads: 4
+    prod:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../data/energy_forecast.duckdb') }}"
+      threads: 4
+

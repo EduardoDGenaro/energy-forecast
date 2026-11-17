@@ -1,0 +1,69 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: energy-forecast-pipeline
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DUCKDB_PATH=/app/data/energy_forecast.duckdb
+      - DBT_PROFILES_DIR=/app/dbt
+      - MLFLOW_TRACKING_URI=sqlite:////app/artifacts/mlflow.db
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./config:/app/config
+      - ./dbt:/app/dbt
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+      - ./tests:/app/tests
+    command: ["pytest"]
+
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: energy-forecast-mlflow
+    profiles:
+      - tracking
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./artifacts:/app/artifacts
+    command:
+      - mlflow
+      - ui
+      - --backend-store-uri
+      - sqlite:////app/artifacts/mlflow.db
+      - --default-artifact-root
+      - /app/artifacts/mlruns
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: energy-forecast-dashboard
+    profiles:
+      - optional
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./config:/app/config
+      - ./dashboard:/app/dashboard
+    command:
+      - streamlit
+      - run
+      - dashboard/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+

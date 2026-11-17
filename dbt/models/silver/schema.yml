@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_ons_carga_diaria
+    description: >
+      Camada Silver contendo todos os registros de carga diaria do ONS padronizados, tipados
+      e enriquecidos com flags de qualidade, deteccao de duplicidades e rastreabilidade ate
+      os arquivos Parquet da camada Bronze, sem descarte silencioso de linhas.
+    columns:
+      - name: id_subsistema
+        description: "Codigo do subsistema padronizado em maiusculas (SE, S, NE, N)."
+        tests:
+          - not_null
+      - name: nom_subsistema
+        description: "Nome oficial do subsistema eletrico."
+        tests:
+          - not_null
+      - name: data_referencia
+        description: "Data de referencia padronizada para o tipo DATE."
+        tests:
+          - not_null
+      - name: val_cargaenergiamwmed_raw
+        description: "Representacao textual original do valor de carga na camada Bronze."
+        tests:
+          - not_null
+      - name: val_cargaenergiamwmed
+        description: "Carga de energia diaria convertida para DOUBLE (MWmed)."
+        tests:
+          - not_null
+      - name: is_valid_load
+        description: "Indica se o valor de carga e nao nulo, finito e estritamente positivo."
+        tests:
+          - not_null
+      - name: duplicate_rank
+        description: "Ordem do registro dentro da chave (id_subsistema, data_referencia)."
+        tests:
+          - not_null
+      - name: is_duplicate
+        description: "True quando duplicate_rank > 1."
+        tests:
+          - not_null
+      - name: is_valid_record
+        description: "True quando todas as validacoes de dominio, data, carga e unicidade passam."
+        tests:
+          - not_null
+      - name: _bronze_source_file
+        description: "Nome do arquivo Parquet de origem na camada Bronze."
+        tests:
+          - not_null

@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: bronze_ons
+    description: "Arquivos Parquet brutos ingeridos do bucket S3 publico do ONS (camada Bronze)."
+    meta:
+      external_location: "read_parquet('../data/bronze/CARGA_ENERGIA_*.parquet', union_by_name=true, filename=true)"
+    tables:
+      - name: carga_energia_diaria
+        description: "Serie bruta de carga diaria por subsistema (2018 ao presente) com metadado filename."
+        columns:
+          - name: id_subsistema
+            description: "Codigo identificador do subsistema eletrico (SE, S, NE, N)."
+          - name: nom_subsistema
+            description: "Nome do subsistema eletrico."
+          - name: din_instante
+            description: "Timestamp da data de referencia da medicao diaria."
+          - name: val_cargaenergiamwmed
+            description: "Carga media diaria em MWmed (string em 2018-2021, double em 2022+)."
+          - name: filename
+            description: "Caminho do arquivo Parquet de origem na camada Bronze."

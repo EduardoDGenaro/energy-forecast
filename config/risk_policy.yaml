@@ -1,0 +1,13 @@
+# Referencias exploratorias escolhidas para iniciar a operacao; nao sao SLAs certificados.
+status: reference
+coverage: 0.90
+calibration_min_samples: 26
+calibration_window: 52
+daily_error_limit_pct: {1: 5.0, 2: 5.0, 3: 5.0, 4: 5.0, 5: 5.0, 6: 5.0, 7: 5.0}
+max_breach_rate: 0.20
+underprediction_weight: 2.0
+overprediction_weight: 1.0
+monitor_recent_days: 28
+monitor_reference_days: 84
+monitor_min_samples: 14
+degradation_ratio: 1.25
