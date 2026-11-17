@@ -1,88 +1,85 @@
-# Energy Forecast — Previsao de Carga Eletrica Diaria (ONS)
+# Energy Forecast — Daily Electricity Load Forecasting (ONS)
 
-Documentação revisada em **17/11/2026**, conferida com os scripts, configurações e
-artefatos locais. Os números apresentados são de uma avaliação histórica específica;
-novas execuções podem produzir resultados e versões de modelo diferentes.
+Documentation reviewed on **2026-11-17**, verified against local scripts, configurations, and artifacts. The numbers presented come from a specific historical evaluation; subsequent runs may produce different results and model versions.
 
-Revisão de 17/11/2026: [verificação técnica, limites dos modelos e melhorias do dashboard](docs/project_review_2026-11-17.md).
-Para recalcular os diagnósticos e reproduzir as previsões históricas sem alterar o MLflow:
+2026-11-17 review: [technical verification, model limitations, and dashboard improvements](docs/project_review_2026-11-17.md).
+To recalculate diagnostics and reproduce historical forecasts without modifying MLflow:
 `python scripts/audit_project.py --retrain`.
 
-Faixas de previsão, monitoramento, limites de erro e experimentos com calendário e
-temperatura: [implementação e resultados](docs/risk_and_candidates.md).
-Execute `python scripts/evaluate_risk.py` para persistir os diagnósticos de risco.
+Forecast intervals, monitoring, error thresholds, and calendar/temperature experiments: [implementation and results](docs/risk_and_candidates.md).
+Run `python scripts/evaluate_risk.py` to persist risk diagnostics.
 
-## 1. Descricao do Projeto
+## 1. Project Overview
 
-O **Energy Forecast** e um projeto de Engenharia de Dados, Machine Learning e MLOps voltado a previsao de carga eletrica diaria no Sistema Interligado Nacional (SIN), utilizando dados publicos oficiais disponibilizados pelo Operador Nacional do Sistema Eletrico (ONS).
+**Energy Forecast** is a Data Engineering, Machine Learning, and MLOps project focused on daily electricity load forecasting for Brazil's National Interconnected System (SIN), using official open data published by the National Electric System Operator (ONS).
 
-A solucao implementa uma arquitetura Medallion local e reproduzivel (**Bronze**, **Silver** e **Gold**) sobre arquivos Parquet, **DuckDB** e **dbt Core**, integrada a um pipeline de modelagem preditiva e backtesting temporal com **LightGBM** e rastreamento de experimentos via **MLflow**.
+The solution implements a local, reproducible Medallion architecture (**Bronze**, **Silver**, and **Gold**) built on Parquet files, **DuckDB**, and **dbt Core**, integrated with a predictive modeling and temporal backtesting pipeline using **LightGBM** and experiment tracking via **MLflow**.
 
-## 2. Objetivo e Problema de Negocio
+## 2. Objective and Business Problem
 
-O planejamento da operacao energetica de curto prazo exige estimativas precisas da demanda diaria de energia para despacho termico e hidreletrico, gestao de reservatorios e seguranca operativa.
+Short-term power system operation planning requires accurate daily electricity demand estimates for thermal and hydro dispatch, reservoir management, and operational security.
 
-O objetivo central deste projeto e **prever a carga diaria de energia (em MWmed) do subsistema Sudeste/Centro-Oeste (codigo `SE`) para um horizonte de 7 dias** ($t+1$ a $t+7$), comparando rigorosamente duas abordagens sob validacao temporal por origens sucessivas (walk-forward backtesting):
+The primary goal of this project is to **forecast daily electricity load (in MWmed) for the Southeast/Central-West subsystem (code `SE`) over a 7-day horizon** ($t+1$ to $t+7$), rigorously comparing two approaches under walk-forward temporal validation with expanding origins:
 
-1. **Baseline Sazonal (Seasonal Naive):** previsao para o dia $t+h$ ($h \in \{1, \dots, 7\}$) igual ao valor real observado no mesmo dia da semana anterior ($t+h-7$), utilizando estritamente dados observados ate a data de origem $t$.
-2. **Modelo de Machine Learning (LightGBM):** modelo baseado em arvores de decisao com gradient boosting utilizando variaveis de calendario (dia da semana, mes, fim de semana, feriados nacionais brasileiros), defasagens temporais (lags de 7, 14 e 28 dias respeitando o horizonte para evitar vazamento temporal) e estatisticas de janelas moveis calculadas exclusivamente com informacoes disponiveis ate a data de origem da previsao.
+1. **Seasonal Baseline (Seasonal Naive):** forecast for day $t+h$ ($h \in \{1, \dots, 7\}$) equal to the actual observed load on the same day of the previous week ($t+h-7$), strictly using data observed up to forecast origin $t$.
+2. **Machine Learning Model (LightGBM):** gradient-boosted decision tree model using calendar features (day of week, month, weekend, Brazilian national holidays), temporal lags (7, 14, and 28 days respecting the forecast horizon to prevent data leakage), and rolling window statistics computed exclusively from information available up to the forecast origin date.
 
-O criterio de sucesso consiste em verificar se o modelo LightGBM supera o baseline sazonal e quantificar a diferenca de desempenho por meio das metricas **MAE** (Mean Absolute Error, em MWmed) e **MAPE** (Mean Absolute Percentage Error, em %), tanto de forma agregada quanto estratificada por horizonte ($h=1 \dots 7$).
+The success criterion is verifying whether the LightGBM model outperforms the seasonal baseline and quantifying the performance gap using **MAE** (Mean Absolute Error, in MWmed) and **MAPE** (Mean Absolute Percentage Error, in %), both overall and stratified by forecast horizon ($h=1 \dots 7$).
 
-## 3. Fonte Oficial dos Dados
+## 3. Official Data Source
 
-- **Organizacao:** Operador Nacional do Sistema Eletrico (ONS)
-- **Portal de Dados Abertos:** https://dados.ons.org.br/dataset/carga-energia
-- **Bucket S3 Publico:** `s3://ons-aws-prod-opendata/dataset/carga_energia_di/`
-- **Endpoint HTTPS do Bucket:** `https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di/`
-- **Recorte Temporal da ingestão:** Janeiro de 2018 até a data disponível na fonte no momento da execução.
-- **Recorte da base local utilizada nos resultados abaixo:** 01/01/2018 a 14/11/2026, com 3.240 dias do subsistema SE. Isso não implica atualização automática do projeto.
-- **Escopo Geografico/Eletrico:** Subsistema Sudeste/Centro-Oeste (`id_subsistema = 'SE'`).
-- **Unidade de Medida:** `MWmed` (Megawatt medio diario).
+- **Organization:** Operador Nacional do Sistema Eletrico (ONS)
+- **Open Data Portal:** https://dados.ons.org.br/dataset/carga-energia
+- **Public S3 Bucket:** `s3://ons-aws-prod-opendata/dataset/carga_energia_di/`
+- **Bucket HTTPS Endpoint:** `https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/carga_energia_di/`
+- **Ingestion Time Range:** January 2018 through the latest date available at the source at runtime.
+- **Local Dataset Range Used in Results Below:** 2018-01-01 to 2026-11-14, totaling 3,240 days for the `SE` subsystem. This does not imply automatic updates to the project.
+- **Geographic/Electrical Scope:** Southeast/Central-West Subsystem (`id_subsistema = 'SE'`).
+- **Unit of Measurement:** `MWmed` (daily average Megawatt).
 
-Detalhes adicionais sobre o schema e as regras de verificacao pre-ingestao encontram-se em [`docs/data_dictionary.md`](docs/data_dictionary.md).
+Additional details on the schema and pre-ingestion validation rules are available in [`docs/data_dictionary.md`](docs/data_dictionary.md).
 
-## 4. Arquitetura Implementada
+## 4. Architecture
 
-O projeto adota a arquitetura Medallion combinada com um ciclo estruturado de MLOps:
+The project follows the Medallion architecture combined with a structured MLOps workflow:
 
-- **Camada Bronze (`data/bronze/`):** ingestão idempotente dos arquivos anuais do ONS, preservando os bytes e o schema do arquivo baixado. O manifesto (`ingestion_manifest.json`) registra origem, hash, período e timestamps. Arquivos alterados na fonte podem ser baixados novamente e substituir a cópia anual local; a Bronze não mantém todas as versões históricas da fonte.
-- **Camada Silver (`dbt/models/silver/`):** Padronizacao de nomes e tipos de dados (datas e numericos), tratamento explicito de nulos ou inconsistencias documentadas, verificacao de duplicidades e preservacao de rastreabilidade ate os arquivos da camada Bronze no DuckDB.
-- **Camada Gold (`dbt/models/gold/`):** Serie temporal diaria analitica filtrada para o subsistema `SE`, ordenada cronologicamente, com chave temporal unica, testes de qualidade automatizados (`not_null`, `unique` e verificacoes de continuidade temporal) pronta para consumo pela engenharia de atributos.
-- **Engenharia de Atributos, Modelagem e Backtesting (`src/energy_forecast/`):** Construcao de features livre de vazamento temporal (data leakage), execucao de backtesting com janelas expansivas sobre multiplas origens de previsao, registro de hiperparametros, metricas e artefatos no **MLflow** (`artifacts/`), e persistencia das previsoes em `data/predictions/`.
-- **Visualização opcional (`dashboard/app.py`):** aplicação Streamlit com tema escuro, navegação lateral, previsão de sete dias, faixas empíricas de incerteza, avaliação histórica, filtros, tabelas e exportação CSV. A apresentação não modifica os modelos nem as previsões salvas.
-- **Diagnósticos de risco e experimentos:** módulos de calibração, acompanhamento de previsões emitidas e comparação de candidatos. Os relatórios ficam em `artifacts/risk/` e `artifacts/candidates/`; essas análises não promovem candidatos automaticamente.
+- **Bronze Layer (`data/bronze/`):** idempotent ingestion of annual ONS files, preserving raw bytes and source schema. The manifest (`ingestion_manifest.json`) records source URL, hash, date range, and timestamps. Files updated at the source can be re-downloaded and overwrite the local annual copy; Bronze does not retain multiple historical versions from the source.
+- **Silver Layer (`dbt/models/silver/`):** column and type standardization (dates and numeric fields), explicit handling of nulls and documented inconsistencies, duplicate checks, and traceability back to Bronze Parquet files in DuckDB.
+- **Gold Layer (`dbt/models/gold/`):** analytical daily time series filtered for the `SE` subsystem, ordered chronologically, with a unique time key and automated quality tests (`not_null`, `unique`, and temporal continuity checks) ready for feature engineering.
+- **Feature Engineering, Modeling, and Backtesting (`src/energy_forecast/`):** leakage-free feature construction, expanding-window walk-forward backtesting across multiple forecast origins, logging of hyperparameters, metrics, and artifacts in **MLflow** (`artifacts/`), and forecast persistence in `data/predictions/`.
+- **Optional Visualization (`dashboard/app.py`):** Streamlit application with dark theme, sidebar navigation, 7-day forecast, empirical uncertainty intervals, historical evaluation, filters, tables, and CSV export. The UI layer does not modify saved models or forecasts.
+- **Risk Diagnostics and Experiments:** calibration, issued-forecast tracking, and candidate comparison modules. Reports are saved under `artifacts/risk/` and `artifacts/candidates/`; these analyses do not automatically promote candidate models.
 
-A especificacao detalhada da arquitetura e as decisoes de engenharia estao documentadas em [`docs/architecture.md`](docs/architecture.md) e [`docs/decisions.md`](docs/decisions.md).
+Detailed architecture specifications and engineering decisions are documented in [`docs/architecture.md`](docs/architecture.md) and [`docs/decisions.md`](docs/decisions.md).
 
-## 5. Stack Tecnologica
+## 5. Tech Stack
 
-| Categoria | Tecnologia | Finalidade |
+| Category | Technology | Purpose |
 | :--- | :--- | :--- |
-| Linguagem | Python >= 3.11 | Linguagem principal de ingestao, features, ML e orquestracao CLI |
-| Armazenamento Colunar | Apache Parquet (PyArrow) | Preservação do conteúdo baixado na Bronze e persistência dos artefatos de previsão |
-| Banco Analitico Local | DuckDB | Processamento OLAP local de alta performance sobre Parquet |
-| Transformacao e Qualidade | dbt Core + dbt-duckdb | Modelagem declarativa e testes de integridade das camadas Silver e Gold |
-| Manipulacao de Dados | pandas + PyArrow | Engenharia de atributos temporais e avaliacao de backtesting |
-| Machine Learning | LightGBM + scikit-learn + holidays | Modelo preditivo tabular, calendario de feriados nacionais e metricas |
-| MLOps / Tracking | MLflow >= 3.0 | Registro de experimentos, parametros, metricas, modelos e artefatos |
-| Qualidade de Codigo | Ruff + pytest | Linting, formatacao padronizada e testes unitarios/integracao |
-| Empacotamento | Docker + Docker Compose + Makefile | Ambiente conteinerizado e atalhos de execução; versões mínimas declaradas em `pyproject.toml` |
-| Visualizacao (Opcional) | Streamlit >= 1.49 + Plotly | Painel interativo opcional e separado do pipeline |
+| Language | Python >= 3.11 | Core language for ingestion, feature engineering, ML, and CLI orchestration |
+| Columnar Storage | Apache Parquet (PyArrow) | Preserving downloaded Bronze data and persisting forecast artifacts |
+| Local Analytical DB | DuckDB | High-performance local OLAP processing over Parquet files |
+| Transformation & Quality | dbt Core + dbt-duckdb | Declarative modeling and data integrity tests for Silver and Gold layers |
+| Data Manipulation | pandas + PyArrow | Temporal feature engineering and backtesting evaluation |
+| Machine Learning | LightGBM + scikit-learn + holidays | Tabular predictive model, national holiday calendar, and evaluation metrics |
+| MLOps / Tracking | MLflow >= 3.0 | Experiment tracking, parameters, metrics, model registry, and artifacts |
+| Code Quality | Ruff + pytest | Linting, standardized formatting, and unit/integration tests |
+| Packaging | Docker + Docker Compose + Makefile | Containerized environment and execution shortcuts; minimum versions declared in `pyproject.toml` |
+| Visualization (Optional) | Streamlit >= 1.49 + Plotly | Optional interactive dashboard decoupled from the pipeline |
 
-## 6. Instrucoes de Instalacao
+## 6. Installation
 
-### Pre-requisitos
+### Prerequisites
 
-- Python 3.11 ou superior
+- Python 3.11 or higher
 - Git
-- Docker e Docker Compose (opcional, para execucao conteinerizada)
-- Acesso à internet para instalar dependências e baixar dados ONS; a experiência com temperatura também consulta Open-Meteo.
-- `make` é opcional. No Windows, os comandos Python abaixo podem ser executados diretamente no PowerShell.
+- Docker and Docker Compose (optional, for containerized execution)
+- Internet access to install dependencies and download ONS data; the temperature experiment also queries Open-Meteo.
+- `make` is optional. On Windows, the Python commands below can be run directly in PowerShell.
 
-### Configuracao Local (Ambiente Virtual)
+### Local Setup (Virtual Environment)
 
-1. Crie e ative um ambiente virtual na raiz do projeto:
+1. Create and activate a virtual environment at the project root:
 
 ```bash
 # Linux / macOS
@@ -96,14 +93,14 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-2. Instale o projeto em modo editavel com as dependencias de desenvolvimento (e opcionalmente o dashboard):
+2. Install the project in editable mode with development dependencies (and optionally the dashboard):
 
 ```bash
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev,dashboard]"
 ```
 
-3. Crie os arquivos locais de configuracao de ambiente e profile do dbt a partir dos exemplos versionados:
+3. Create local environment and dbt profile files from the versioned templates:
 
 ```bash
 # Linux / macOS
@@ -117,14 +114,14 @@ Copy-Item .env.example .env
 Copy-Item dbt/profiles.yml.example dbt/profiles.yml
 ```
 
-Execute os comandos na raiz do projeto, com o ambiente virtual ativo. As
-configurações principais ficam em `config/settings.yaml`; `.env` fornece
-sobrescritas. Copie os exemplos somente se os arquivos locais ainda não existirem,
-para preservar configurações já personalizadas. O projeto está preparado para
-o subsistema SE e horizonte de sete dias; alterar apenas uma variável de ambiente
-não garante suporte a outros recortes ou horizontes.
+Run commands from the project root with the virtual environment active. Core
+settings live in `config/settings.yaml`; `.env` provides overrides. Copy the
+example files only if the local files do not exist yet, so existing custom
+configurations are preserved. The project is configured for the `SE` subsystem
+and a 7-day horizon; changing a single environment variable does not guarantee
+support for other scopes or horizons.
 
-### Execucao via Docker
+### Running with Docker
 
 ```bash
 docker compose build
@@ -134,241 +131,253 @@ docker compose run --rm pipeline python scripts/evaluate.py
 docker compose run --rm pipeline pytest
 ```
 
-O serviço `pipeline` executa `pytest` por padrão, mas os testes de integração
-precisam dos dados e artefatos gerados nas etapas anteriores. Os diretórios
-`data/` e `artifacts/` são montados como volumes locais.
+The `pipeline` service runs `pytest` by default, though integration tests require
+the data and artifacts produced by the preceding steps. Both `data/` and
+`artifacts/` are mounted as local volumes.
 
-Para os serviços opcionais:
+For optional services:
 
 ```bash
 docker compose --profile optional up dashboard
-# Em outro terminal:
+# In another terminal:
 docker compose --profile tracking up mlflow
 ```
 
-O dashboard usa a porta 8501 e o MLflow, a porta 5000. Os comandos Docker foram
-conferidos com `docker-compose.yml`; o build Docker não foi executado nesta revisão.
+The dashboard listens on port 8501 and MLflow on port 5000. Docker commands
+were verified against `docker-compose.yml`; the Docker build was not executed
+during the 2026-11-17 review.
 
-## 7. Etapas do Pipeline
+## 7. Pipeline Stages
 
-Os pontos de entrada estão centralizados em `scripts/`; as etapas principais têm
-atalhos no `Makefile`. Para a primeira execução, faça ingestão, dbt e avaliação
-nessa ordem. `evaluate.py` também treina o modelo final e gera a previsão operacional.
+Entry points are centralized under `scripts/`; core stages have shortcuts in
+`Makefile`. On a first run, execute ingestion, dbt, and evaluation in that
+order. `evaluate.py` also trains the final model and generates the operational
+forecast.
 
-1. **Ingestao Bronze:**
+1. **Bronze Ingestion:**
    ```bash
    python scripts/ingest.py
-   # ou: make ingest
+   # or: make ingest
    ```
-2. **Transformacao e Testes de Qualidade (Silver e Gold via dbt + DuckDB):**
+2. **Transformation and Quality Tests (Silver and Gold via dbt + DuckDB):**
    ```bash
    python scripts/run_dbt.py --command build
-   # ou: make dbt
+   # or: make dbt
    ```
-3. **Treinamento operacional, quando for necessário apenas reajustar a previsão:**
+3. **Operational training, when only updating the forecast:**
    ```bash
    python scripts/train.py
-   # ou: make train
+   # or: make train
    ```
-   Salva a previsão de sete dias e a importância das features, preserva a emissão
-   e adiciona faixas se houver backtest disponível. **Não registra uma nova versão
-   no MLflow.** Não substitui a avaliação histórica necessária ao dashboard.
+   Saves the 7-day forecast and feature importance, preserves the forecast
+   issuance record, and attaches prediction intervals if a backtest is
+   available. **Does not register a new version in MLflow.** Does not replace
+   the historical evaluation required by the dashboard.
 
-4. **Backtesting, previsão final e registro no MLflow:**
+4. **Backtesting, final forecast, and MLflow logging:**
    ```bash
    python scripts/evaluate.py
-   # ou: make evaluate
+   # or: make evaluate
    ```
-   Avalia por padrão as 52 origens semanais mais recentes, treina novamente no
-   histórico completo e registra modelo, métricas e artefatos no MLflow.
-   O número de origens pode ser informado com `--max-origins`; os testes e
-   experimentos do snapshot documentado esperam 52.
+   Evaluates the 52 most recent weekly origins by default, retrains on the full
+   history, and logs the model, metrics, and artifacts to MLflow. The number of
+   origins can be configured with `--max-origins`; tests and experiments for the
+   documented snapshot expect 52.
 
-5. **Interface do MLflow e Dashboard Opcional:**
+5. **MLflow UI and Optional Dashboard:**
    ```bash
    mlflow ui --backend-store-uri sqlite:///artifacts/mlflow.db --port 5000
-   # Ou: make mlflow-ui
+   # or: make mlflow-ui
    ```
-   Em outro terminal, na raiz do projeto:
+   In another terminal, from the project root:
    ```bash
    python -m streamlit run dashboard/app.py
-   # Ou: make dashboard
+   # or: make dashboard
    ```
-   A porta padrão do dashboard é 8501. Para usar a porta 8502, utilizada durante
-   a revisão visual deste projeto:
+   The default dashboard port is 8501. To run on port 8502, used during the
+   visual review of this project:
    ```bash
    python -m streamlit run dashboard/app.py --server.port 8502
    ```
 
-6. **Diagnósticos adicionais, executados conforme a necessidade:**
+6. **Additional diagnostics, run on demand:**
    ```bash
    python scripts/audit_project.py
    python scripts/audit_project.py --retrain
    python scripts/evaluate_risk.py
    ```
-   A auditoria recalcula os indicadores e verifica artefatos; `--retrain` também
-   reproduz as previsões históricas em `artifacts/review/`, sem criar versão no
-   MLflow. `evaluate_risk.py` persiste faixas, cobertura, limites e acompanhamento;
-   também atualiza as faixas da previsão atual e arquiva uma emissão com horário
-   real. Portanto, esse último comando **não é somente leitura**.
+   The audit script recalculates indicators and checks artifacts; `--retrain`
+   also reproduces historical forecasts under `artifacts/review/` without
+   creating a new MLflow version. `evaluate_risk.py` persists intervals,
+   coverage, thresholds, and tracking outputs; it also updates intervals on the
+   current forecast and archives an issuance with a real timestamp. Therefore,
+   `evaluate_risk.py` **is not read-only**.
 
-Os comandos `audit_project.py`, `evaluate_risk.py`, `fetch_weather.py` e
-`evaluate_candidates.py` são executados diretamente; não possuem atalhos próprios
-no `Makefile` atual. Nenhuma rotina é agendada automaticamente.
+`audit_project.py`, `evaluate_risk.py`, `fetch_weather.py`, and
+`evaluate_candidates.py` are invoked directly; they do not currently have
+`Makefile` shortcuts. No routine is scheduled automatically.
 
-## 8. Roadmap de Implementacao
+## 8. Implementation Roadmap
 
-- [x] **Etapa 1 — Preparacao do Terreno e Arquitetura:** estrutura de diretorios, `pyproject.toml`, Docker, configuracao dbt/DuckDB, utilitarios centrais de configuracao/logging, testes iniciais, lint com Ruff e documentacao arquitetural.
-- [x] **Etapa 2 — Inspecao do Dicionario ONS e Ingestao Bronze:** verificacao do dicionario oficial e dos arquivos no S3 do ONS (2018 ao presente), download idempotente, preservacao dos Parquets brutos sem alteracao de schema e geracao do manifesto de ingestao (`data/bronze/ingestion_manifest.json`).
-- [x] **Etapa 3 — Camadas Silver e Gold com dbt:** criacao das sources sobre os Parquets da Bronze, padronizacao e auditoria na Silver (`main_silver.stg_ons_carga_diaria`), construcao da serie diaria do subsistema `SE` na Gold (`main_gold.fct_carga_diaria_se`) e 22 testes de qualidade/continuidade no dbt.
-- [x] **Etapa 4 — Baseline Sazonal e Engenharia de Atributos:** implementacao do modelo Seasonal Naive ($t-7$) e do pipeline de features temporais (calendario, feriados BR, lags 7/14/28 e medias/desvios moveis ancorados na origem da previsao sem vazamento temporal).
-- [x] **Etapa 5 — Modelo LightGBM, Backtesting e MLflow:** treinamento sob validacao temporal com 52 origens sucessivas (364 dias avaliados), comparacao contra o baseline (MAE e MAPE por horizonte e agregados) e rastreamento completo no MLflow (`lightgbm-se-daily-load` v1).
-- [x] **Etapa 6 — Consolidacao dos Resultados e Dashboard Opcional:** documentacao final das metricas reais obtidas no backtesting e disponibilizacao do painel opcional em Streamlit (`dashboard/app.py`).
+- [x] **Stage 1 — Foundation and Architecture:** directory layout, `pyproject.toml`, Docker, dbt/DuckDB setup, core config/logging utilities, initial tests, Ruff linting, and architecture documentation.
+- [x] **Stage 2 — ONS Schema Inspection and Bronze Ingestion:** verification of the official data dictionary and ONS S3 files (2018 to present), idempotent downloads, raw Parquet preservation without schema modification, and ingestion manifest generation (`data/bronze/ingestion_manifest.json`).
+- [x] **Stage 3 — Silver and Gold Layers with dbt:** source definitions over Bronze Parquets, standardization and auditing in Silver (`main_silver.stg_ons_carga_diaria`), `SE` subsystem daily series in Gold (`main_gold.fct_carga_diaria_se`), and 22 dbt quality/continuity tests.
+- [x] **Stage 4 — Seasonal Baseline and Feature Engineering:** implementation of the Seasonal Naive baseline ($t-7$) and temporal feature pipeline (calendar, Brazilian holidays, 7/14/28-day lags, and rolling means/stds anchored at the forecast origin without data leakage).
+- [x] **Stage 5 — LightGBM Model, Backtesting, and MLflow:** temporal validation across 52 successive origins (364 evaluated days), baseline comparison (overall and per-horizon MAE and MAPE), and full MLflow tracking (`lightgbm-se-daily-load` v1).
+- [x] **Stage 6 — Results Consolidation and Optional Dashboard:** final documentation of observed backtesting metrics and delivery of the optional Streamlit dashboard (`dashboard/app.py`).
 
-## 9. Como Executar os Testes e Verificacoes de Qualidade
+## 9. Running Tests and Quality Checks
 
-Para executar a suite de testes automatizados com `pytest`:
+To run the automated test suite with `pytest`:
 
 ```bash
 pytest
-# ou: make test
+# or: make test
 ```
 
-A suíte combina testes unitários, de interface e de integração. Parte dela lê
-dados e artefatos locais, que não são versionados. Os testes de integração contêm
-assertivas do snapshot documentado (por exemplo, 3.240 dias e término em
-14/11/2026); uma atualização dos dados exige revisar essas expectativas.
-Executar `pytest` em uma instalação vazia ou após atualizar o snapshot pode falhar
-por esses contratos, sem que isso represente falha do algoritmo.
+The suite combines unit, UI, and integration tests. Part of it reads local data
+and artifacts, which are not versioned. Integration tests include assertions
+against the documented snapshot (for example, 3,240 days ending on
+2026-11-14); refreshing the underlying data requires updating those
+expectations. Running `pytest` on a fresh clone without data or after a snapshot
+refresh may fail those contracts without indicating an algorithmic bug.
 
-Para validar o padrao de codigo e a formatacao com `Ruff`:
+To validate code style and formatting with `Ruff`:
 
 ```bash
 ruff check src scripts tests dashboard
 ruff format --check src scripts tests dashboard
-# ou: make lint
+# or: make lint
 ```
 
-## 10. Resultados da Avaliacao (Baseline vs. LightGBM)
+## 10. Evaluation Results (Baseline vs. LightGBM)
 
-Os resultados abaixo foram obtidos por **backtesting temporal com janelas expansivas (expanding window walk-forward)** sobre a serie diaria real da camada Gold do subsistema `SE` (`2018-01-01` a `2026-11-14`), avaliando **52 origens de previsao semanais sucessivas** (`2025-11-15` a `2026-11-07`, totalizando **364 dias previstos** no periodo de `2025-11-16` a `2026-11-14`) registrados no MLflow (`run_id = 1461985175154c79ac2151ff5f6acf15`, modelo `lightgbm-se-daily-load` versao `1`).
+The results below were obtained via **expanding-window walk-forward temporal backtesting** over the actual Gold-layer daily series for the `SE` subsystem (`2018-01-01` to `2026-11-14`), evaluating **52 successive weekly forecast origins** (`2025-11-15` to `2026-11-07`, totaling **364 forecasted days** from `2025-11-16` to `2026-11-14`) logged in MLflow (`run_id = 1461985175154c79ac2151ff5f6acf15`, model `lightgbm-se-daily-load` version `1`).
 
-### Resposta Executiva (LightGBM supera o Baseline?)
+### Executive Summary (Does LightGBM Outperform the Baseline?)
 
-**O LightGBM supera o baseline no agregado e na média de cada um dos sete horizontes do backtest documentado.** Isso não significa vitória em todos os dias, semanas ou meses, nem garante o mesmo resultado em novas previsões.
-No consolidado das 52 janelas semanais (364 dias avaliados), o LightGBM reduziu o **MAE** de **2.322,70 MWmed** para **1.701,53 MWmed** (**melhoria de 26,74%**, ou -621,17 MWmed de erro absoluto medio) e reduziu o **MAPE** de **5,22%** para **3,79%** (**melhoria relativa de 27,38%**).
-Os maiores ganhos médios ocorrem nos horizontes $t+1$ e $t+2$ (acima de **36% de redução de MAE**). As features de carga recente, calendário e lags fazem parte do modelo, mas esta comparação não isola a contribuição causal de cada feature.
+**LightGBM outperforms the baseline overall and on average across each of the seven horizons in the documented backtest.** This does not guarantee outperformance on every individual day, week, or month, nor does it guarantee identical results on future forecasts.
+Across all 52 weekly windows (364 evaluated days), LightGBM reduced **MAE** from **2,322.70 MWmed** to **1,701.53 MWmed** (**26.74% improvement**, or -621.17 MWmed in mean absolute error) and reduced **MAPE** from **5.22%** to **3.79%** (**27.38% relative improvement**).
+The largest average gains occur at horizons $t+1$ and $t+2$ (over **36% MAE reduction**). Recent load, calendar, and lag features are part of the model, though this comparison does not isolate the causal contribution of individual features.
 
-### Tabela Comparativa Agregada (52 Origens / 364 Dias Avaliados)
+### Overall Comparison Table (52 Origins / 364 Evaluated Days)
 
-| Modelo | MAE (MWmed) | MAPE (%) | Melhoria vs. Baseline (MAE %) | Melhoria vs. Baseline (MAPE %) | Status |
+| Model | MAE (MWmed) | MAPE (%) | Improvement vs. Baseline (MAE %) | Improvement vs. Baseline (MAPE %) | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Baseline Sazonal ($t-7$) | 2.322,70 | 5,22% | — | — | Referencia |
-| **LightGBM** | **1.701,53** | **3,79%** | **+26,74%** | **+27,38%** | **LightGBM supera Baseline** |
+| Seasonal Baseline ($t-7$) | 2,322.70 | 5.22% | — | — | Reference |
+| **LightGBM** | **1,701.53** | **3.79%** | **+26.74%** | **+27.38%** | **LightGBM beats Baseline** |
 
-### Desempenho Real Estratificado por Horizonte de Previsao ($t+1$ a $t+7$)
+### Performance Breakdown by Forecast Horizon ($t+1$ to $t+7$)
 
-| Horizonte ($h$) | Amostras ($N$) | MAE Baseline (MWmed) | MAE LightGBM (MWmed) | Melhoria MAE (%) | MAPE Baseline (%) | MAPE LightGBM (%) | Melhoria MAPE (%) | Status no Horizonte |
+| Horizon ($h$) | Samples ($N$) | Baseline MAE (MWmed) | LightGBM MAE (MWmed) | MAE Improvement (%) | Baseline MAPE (%) | LightGBM MAPE (%) | MAPE Improvement (%) | Horizon Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| $t+1$ | 52 | 2.106,04 | **1.342,11** | **+36,27%** | 5,31% | **3,37%** | **+36,49%** | LightGBM supera Baseline |
-| $t+2$ | 52 | 2.647,98 | **1.664,95** | **+37,12%** | 5,94% | **3,72%** | **+37,38%** | LightGBM supera Baseline |
-| $t+3$ | 52 | 2.524,62 | **1.921,87** | **+23,87%** | 5,48% | **4,15%** | **+24,34%** | LightGBM supera Baseline |
-| $t+4$ | 52 | 2.062,76 | **1.831,22** | **+11,22%** | 4,39% | **3,91%** | **+11,00%** | LightGBM supera Baseline |
-| $t+5$ | 52 | 2.271,75 | **1.810,03** | **+20,32%** | 4,96% | **3,95%** | **+20,33%** | LightGBM supera Baseline |
-| $t+6$ | 52 | 2.443,49 | **1.679,67** | **+31,26%** | 5,37% | **3,64%** | **+32,24%** | LightGBM supera Baseline |
-| $t+7$ | 52 | 2.202,26 | **1.660,88** | **+24,58%** | 5,12% | **3,82%** | **+25,39%** | LightGBM supera Baseline |
+| $t+1$ | 52 | 2,106.04 | **1,342.11** | **+36.27%** | 5.31% | **3.37%** | **+36.49%** | LightGBM beats Baseline |
+| $t+2$ | 52 | 2,647.98 | **1,664.95** | **+37.12%** | 5.94% | **3.72%** | **+37.38%** | LightGBM beats Baseline |
+| $t+3$ | 52 | 2,524.62 | **1,921.87** | **+23.87%** | 5.48% | **4.15%** | **+24.34%** | LightGBM beats Baseline |
+| $t+4$ | 52 | 2,062.76 | **1,831.22** | **+11.22%** | 4.39% | **3.91%** | **+11.00%** | LightGBM beats Baseline |
+| $t+5$ | 52 | 2,271.75 | **1,810.03** | **+20.32%** | 4.96% | **3.95%** | **+20.33%** | LightGBM beats Baseline |
+| $t+6$ | 52 | 2,443.49 | **1,679.67** | **+31.26%** | 5.37% | **3.64%** | **+32.24%** | LightGBM beats Baseline |
+| $t+7$ | 52 | 2,202.26 | **1,660.88** | **+24.58%** | 5.12% | **3.82%** | **+25.39%** | LightGBM beats Baseline |
 
-## 11. Faixas de previsão e limites de interpretação
+## 11. Forecast Intervals and Interpretation Limits
 
-As faixas empíricas têm meta nominal de 90% e usam erros absolutos anteriores do
-mesmo horizonte, conhecidos até a origem. A calibração exige pelo menos 26 amostras
-e utiliza até as 52 mais recentes. Sem histórico suficiente, os limites ficam
-indisponíveis. Cada alvo avaliado é excluído da própria calibração.
+Empirical intervals target a nominal 90% coverage and use prior absolute errors
+for the same horizon known up to the forecast origin. Calibration requires at
+least 26 samples and uses up to the 52 most recent ones. Without sufficient
+history, bounds remain unavailable. Each evaluated target is excluded from its
+own calibration.
 
-Na avaliação disponível, houve cobertura de **92,31% em 182 previsões avaliáveis**.
-Esse resultado não garante a mesma cobertura futura: dependência temporal, mudanças
-de regime e treinamentos sucessivos limitam a interpretação da meta nominal.
-MAPE de 3,79% também não equivale a acurácia de 96,21% ou intervalo de ±3,79%.
+In the available evaluation, observed coverage was **92.31% across 182
+evaluable forecasts**. This result does not guarantee future coverage: temporal
+dependence, regime shifts, and successive retrainings limit the interpretation
+of the nominal target. Likewise, a 3.79% MAPE does not mean 96.21% accuracy or
+a ±3.79% confidence interval.
 
-As referências padrão ficam em `config/risk_policy.yaml`: erro diário de até 5%
-por horizonte, peso 2 para subestimativa e 1 para superestimativa. A rotina de
-monitoramento usa ainda referência de no máximo 20% dos dias acima do limite,
-janelas de 28/84 dias e razão de degradação de 1,25. São parâmetros exploratórios,
-sem validação de SLA ou conversão dos pesos em custo financeiro.
+Default reference thresholds live in `config/risk_policy.yaml`: up to 5% daily
+error per horizon, weight 2 for under-forecasting, and weight 1 for
+over-forecasting. The monitoring routine also references a maximum of 20% of
+days exceeding the threshold, 28/84-day rolling windows, and a degradation ratio
+of 1.25. These are exploratory parameters without SLA validation or conversion
+of weights into financial cost.
 
-As origens do backtest documentado são semanais, aos sábados. O teste utiliza
-o histórico consolidado disponível no projeto; não simula integralmente revisões
-do ONS e horários de publicação. Não há avaliação prospectiva intocada documentada.
-Dados locais e artefatos estão no `.gitignore`; as dependências usam faixas de
-versão abertas, sem lockfile. A reprodução comprovada refere-se ao ambiente e ao
-snapshot revisados, e não a qualquer instalação futura.
+The documented backtest uses weekly Saturday origins. Testing relies on the
+consolidated historical data available in the project and does not fully
+simulate ONS data revisions or publication schedules. There is no documented
+untouched prospective evaluation. Local data and artifacts are gitignored, and
+dependencies use open version ranges without a lockfile. Verified reproducibility
+applies to the reviewed environment and snapshot, not to arbitrary future
+installations.
 
-## 12. Experimentos com calendário e temperatura
+## 12. Calendar and Weather Experiments
 
-O perfil operacional continua sendo o LightGBM com calendário nacional. Há um
-perfil candidato com Carnaval, Quarta de Cinzas, Corpus Christi, pontes e fim de
-ano, além de um candidato com temperatura prevista por rodadas ECMWF via Open-Meteo.
+The operational profile remains LightGBM with the national holiday calendar.
+There is a candidate profile adding Carnival, Ash Wednesday, Corpus Christi,
+bridge holidays, and year-end effects, as well as a candidate incorporating
+forecasted temperature from ECMWF runs via Open-Meteo.
 
 ```bash
 python scripts/fetch_weather.py
 python scripts/evaluate_candidates.py
 ```
 
-O download guarda arquivos brutos e snapshots em `data/weather/` e requer rede.
-A comparação usa 39 semanas para desenvolvimento e 13 reservadas para verificação
-retrospectiva, persistindo a seleção antes de avaliar o período reservado.
-O protocolo atual exige os artefatos de um backtest com 52 origens.
+The download stores raw files and snapshots under `data/weather/` and requires
+network access. Comparison uses 39 weeks for development and 13 reserved weeks
+for retrospective verification, persisting model selection before evaluating the
+reserved period. The current protocol requires artifacts from a 52-origin
+backtest.
 
-No experimento disponível, o candidato com temperatura obteve MAPE de **2,83%**,
-contra **4,04%** do operacional nos mesmos **84 alvos**. Apenas 12 das 13 origens
-reservadas tinham temperatura completa; a rodada de 19/09/2026 foi excluída sem
-preenchimento. Esse resultado não deve ser comparado diretamente aos 3,79% do
-backtest completo, pois os períodos e amostras são diferentes.
+In the available experiment, the temperature candidate achieved **2.83% MAPE**,
+compared to **4.04%** for the operational model on the same **84 targets**. Only
+12 of the 13 reserved origins had complete temperature coverage; the
+2026-09-19 run was excluded without imputation. This result should not be
+compared directly to the 3.79% full-backtest MAPE, as periods and sample sets
+differ.
 
-O candidato permanece **experimental**. A temperatura é média simples de quatro
-localidades, a disponibilidade assume atraso de seis horas e a proveniência das
-rodadas antigas precisa de confirmação. O histórico já havia sido consultado;
-portanto, a verificação reservada não é um holdout prospectivo intocado. Nenhum
-experimento substitui automaticamente o modelo operacional no MLflow ou no painel.
+The temperature candidate remains **experimental**. Temperature is a simple
+average across four locations, availability assumes a 6-hour delay, and the
+provenance of older forecast runs requires confirmation. Because historical data
+had already been inspected, the reserved check is not an untouched prospective
+holdout. No experiment automatically replaces the operational model in MLflow or
+the dashboard.
 
-Detalhes e fontes: [faixas, acompanhamento e modelos candidatos](docs/risk_and_candidates.md).
+Details and sources: [intervals, tracking, and candidate models](docs/risk_and_candidates.md).
 
-## 13. Dashboard e artefatos disponíveis
+## 13. Dashboard and Available Artifacts
 
-O dashboard usa tema escuro e navegação lateral com quatro seções:
+The dashboard uses a dark theme and sidebar navigation with four sections:
 
-- **Previsão:** 21 dias de histórico, sete dias previstos, faixas empíricas,
-  tabelas diárias e botão **Baixar CSV**.
-- **Validação:** séries realizadas e previstas, filtro por horizonte, erros mensais,
-  piores dias e referência padrão de erro.
-- **Histórico:** fatores usados pelo modelo e consulta da série com filtro por ano.
-- **Guia:** explicação dos termos, métricas e limites de interpretação.
+- **Forecast (*Previsão*):** 21 days of history, 7 forecasted days, empirical
+  intervals, daily tables, and a **Download CSV** (*Baixar CSV*) button.
+- **Validation (*Validação*):** actual vs. forecasted series, horizon filter,
+  monthly errors, worst days, and default error reference line.
+- **History (*Histórico*):** model feature drivers and time-series explorer with
+  year filter.
+- **Guide (*Guia*):** explanation of terms, metrics, and interpretation limits.
 
-O calendário do cabeçalho informa o período exibido, acompanhado da data da base.
-A seção “Risco e acompanhamento” e seus controles por sessão foram removidos;
-as rotinas técnicas e seus relatórios continuam disponíveis por CLI. Nenhuma rotina
-é agendada automaticamente e não há envio de alertas externos.
+The header calendar indicates the displayed period alongside the dataset cutoff
+date. The former "Risk and Tracking" section and its per-session controls were
+removed; the underlying technical routines and reports remain available via CLI.
+No routines are scheduled automatically and no external alerts are sent.
 
-| Local | Conteúdo |
+| Location | Contents |
 | --- | --- |
-| `data/bronze/` | Parquets ONS e manifesto de ingestão |
-| `data/silver/`, `data/gold/` | Exportações analíticas do dbt |
-| `data/predictions/` | Backtest, previsão atual e diretório `issued_forecasts/` |
-| `artifacts/backtest_summary.json` | Resumo da avaliação e identificação no MLflow |
-| `artifacts/mlflow.db`, `artifacts/mlruns/` | Rastreamento e modelos locais |
-| `artifacts/review/` | Auditoria e reprodução do backtest |
-| `artifacts/risk/` | Cobertura, limites, cortes críticos e monitoramento |
-| `artifacts/candidates/` | Seleção congelada e comparação dos candidatos |
-| `data/weather/` | Rodadas meteorológicas e relatório de cobertura |
-| `.streamlit/config.toml`, `dashboard/styles.css` | Tema e estilos da interface |
+| `data/bronze/` | ONS Parquet files and ingestion manifest |
+| `data/silver/`, `data/gold/` | dbt analytical exports |
+| `data/predictions/` | Backtest, current forecast, and `issued_forecasts/` directory |
+| `artifacts/backtest_summary.json` | Evaluation summary and MLflow run identification |
+| `artifacts/mlflow.db`, `artifacts/mlruns/` | Local tracking database and logged models |
+| `artifacts/review/` | Audit outputs and backtest reproduction |
+| `artifacts/risk/` | Coverage, thresholds, critical splits, and monitoring |
+| `artifacts/candidates/` | Frozen selection and candidate comparison |
+| `data/weather/` | Weather forecast runs and coverage report |
+| `.streamlit/config.toml`, `dashboard/styles.css` | UI theme and styles |
 
-As emissões são arquivadas com horário real. O acompanhamento só pontua dias
-inteiros posteriores à emissão quando os valores reais chegam à Gold. Os dados
-do backtest não são registrados como se fossem previsões operacionais emitidas.
-`evaluate_risk.py` recalcula os relatórios, mas a base precisa ser atualizada
-separadamente para obter novos valores reais.
+Issuances are archived with real timestamps. Tracking scores only full days
+subsequent to issuance once actual values reach the Gold layer. Backtest data is
+never recorded as if it were an operationally issued forecast.
+`evaluate_risk.py` recalculates reports, though the underlying dataset must be
+updated separately to ingest new actual values.
 
-Referências internas: [arquitetura](docs/architecture.md),
-[dicionário de dados](docs/data_dictionary.md), [decisões](docs/decisions.md) e
-[revisão técnica de 17/11/2026](docs/project_review_2026-11-17.md).
-
+Internal references: [architecture](docs/architecture.md),
+[data dictionary](docs/data_dictionary.md), [decisions](docs/decisions.md), and
+[2026-11-17 technical review](docs/project_review_2026-11-17.md).
