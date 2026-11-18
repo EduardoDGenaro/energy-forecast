@@ -1,0 +1,167 @@
+{
+  "experiment_id": "1",
+  "experiment_name": "ons-se-load-forecast",
+  "run_id": "1461985175154c79ac2151ff5f6acf15",
+  "registered_model_name": "lightgbm-se-daily-load",
+  "model_version": "1",
+  "summary": {
+    "num_origins": 52,
+    "total_evaluated_days": 364,
+    "first_origin_date": "2025-11-15",
+    "last_origin_date": "2026-11-07",
+    "first_target_date": "2025-11-16",
+    "last_target_date": "2026-11-14",
+    "mae_baseline": 2322.699245421346,
+    "mae_lgbm": 1701.533819820523,
+    "mae_improvement_pct": 26.743256873454634,
+    "lgbm_beats_baseline_mae": true,
+    "status_mae": "LightGBM supera Baseline",
+    "mape_baseline": 5.224755301046689,
+    "mape_lgbm": 3.793968160207367,
+    "mape_improvement_pct": 27.384768441742885,
+    "lgbm_beats_baseline_mape": true,
+    "status_mape": "LightGBM supera Baseline"
+  },
+  "horizon_metrics": [
+    {
+      "horizon": 1,
+      "count": 52,
+      "mae_baseline": 2106.038761218141,
+      "mae_lgbm": 1342.1074029842396,
+      "mae_improvement_pct": 36.27337598440214,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 5.311728226074315,
+      "mape_lgbm": 3.373376366519893,
+      "mape_improvement_pct": 36.491924606372045,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 2,
+      "count": 52,
+      "mae_baseline": 2647.980729166729,
+      "mae_lgbm": 1664.9542196448926,
+      "mae_improvement_pct": 37.12362777772846,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 5.938425085985456,
+      "mape_lgbm": 3.7184177760601145,
+      "mape_improvement_pct": 37.38377225915515,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 3,
+      "count": 52,
+      "mae_baseline": 2524.6171137819883,
+      "mae_lgbm": 1921.874367605578,
+      "mae_improvement_pct": 23.874620150755252,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 5.481665442516112,
+      "mape_lgbm": 4.147356759815652,
+      "mape_improvement_pct": 24.341300954842758,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 4,
+      "count": 52,
+      "mae_baseline": 2062.7593108974997,
+      "mae_lgbm": 1831.2177375390627,
+      "mae_improvement_pct": 11.224846841568448,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 4.391183863275471,
+      "mape_lgbm": 3.9079406456385786,
+      "mape_improvement_pct": 11.004850461361281,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 5,
+      "count": 52,
+      "mae_baseline": 2271.7463189104487,
+      "mae_lgbm": 1810.0306772979457,
+      "mae_improvement_pct": 20.32426058178654,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 4.962155851353681,
+      "mape_lgbm": 3.953237540648803,
+      "mape_improvement_pct": 20.332257609958862,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 6,
+      "count": 52,
+      "mae_baseline": 2443.493686698909,
+      "mae_lgbm": 1679.672031033418,
+      "mae_improvement_pct": 31.259407782526033,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 5.368620122121967,
+      "mape_lgbm": 3.637785913632231,
+      "mape_improvement_pct": 32.23983387011591,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    },
+    {
+      "horizon": 7,
+      "count": 52,
+      "mae_baseline": 2202.2587972757055,
+      "mae_lgbm": 1660.880302638524,
+      "mae_improvement_pct": 24.582873516359268,
+      "lgbm_beats_baseline_mae": true,
+      "status_mae": "LightGBM supera Baseline",
+      "mape_baseline": 5.119508515999827,
+      "mape_lgbm": 3.8196621191362947,
+      "mape_improvement_pct": 25.390062206189633,
+      "lgbm_beats_baseline_mape": true,
+      "status_mape": "LightGBM supera Baseline"
+    }
+  ],
+  "top_features": [
+    {
+      "feature": "day_of_year_sin",
+      "importance": 855.0
+    },
+    {
+      "feature": "day_of_year",
+      "importance": 809.0
+    },
+    {
+      "feature": "day_of_year_cos",
+      "importance": 779.0
+    },
+    {
+      "feature": "lag_28",
+      "importance": 631.0
+    },
+    {
+      "feature": "lag_14",
+      "importance": 622.0
+    },
+    {
+      "feature": "rolling_mean_28",
+      "importance": 620.0
+    },
+    {
+      "feature": "lag_7_diff_14",
+      "importance": 619.0
+    },
+    {
+      "feature": "day_of_month",
+      "importance": 618.0
+    },
+    {
+      "feature": "lag_7",
+      "importance": 568.0
+    },
+    {
+      "feature": "day_of_week",
+      "importance": 475.0
+    }
+  ]
+}

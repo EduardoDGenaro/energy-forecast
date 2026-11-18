@@ -711,7 +711,8 @@ def render_app() -> None:
             )
         with dates:
             date_location = st.empty()
-    settings = load_settings()
+    project_root = Path(__file__).resolve().parents[1]
+    settings = load_settings(root_dir=project_root)
     summary_path = settings.paths.artifacts_dir / "backtest_summary.json"
     predictions_path = settings.paths.predictions_dir / "backtest_predictions.parquet"
     gold_path = settings.paths.gold_dir / "fct_carga_diaria_se.parquet"

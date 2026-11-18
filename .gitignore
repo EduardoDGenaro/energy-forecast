@@ -37,10 +37,15 @@ data/predictions/*
 *.parquet
 data/weather/
 *.csv
+!data/gold/fct_carga_diaria_se.parquet
+!data/predictions/backtest_predictions.parquet
+!data/predictions/latest_forecast_7d.parquet
 
 # Artefatos de modelos e MLflow
 artifacts/*
 !artifacts/.gitkeep
+!artifacts/backtest_summary.json
+!artifacts/feature_importance.csv
 mlruns/
 mlartifacts/
 *.db
